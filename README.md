@@ -1,5 +1,10 @@
-# pms5003_micropython
-Driver for pms5003 air quality sensor for micropython
+# pms5003-micropython-minimal
+Minimal driver for pms5003 air quality sensor for micropython, based on the excellent work of Kevin Köck (https://github.com/kevinkk525/pms5003_micropython)
+
+Supports:
+* passive mode
+* reading sensor measurements
+
 
 ## Description and features
 This driver for the [pms5003 air quality sensor](http://www.aqmd.gov/docs/default-source/aq-spec/resources-page/plantower-pms5003-manual_v2-3.pdf) is specifically made for micropython.
