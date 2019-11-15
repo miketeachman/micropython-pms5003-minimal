@@ -96,7 +96,7 @@ class PMS5003:
                     self._error("Error putting device in passive mode")
                     self._lock.release()  # workaround until bug fixed
                     return False
-            self._uart.flush()
+            self._uart.clear_rx()
         self._debug("setPassiveMode done")
         return True
 
@@ -111,7 +111,7 @@ class PMS5003:
         s = sum(arr[:5])
         arr[5] = int(s / 256)
         arr[6] = s % 256
-        self._uart.flush()
+        self._uart.clear_rx()
         self._uart.write(arr)
         et = time.ticks_ms() + delay + (wait if wait else 0)
         frame_len = CMD_FRAME_LENGTH + 4 if expect_command else DATA_FRAME_LENGTH + 4
@@ -119,7 +119,7 @@ class PMS5003:
         if wait:
             self._debug("waiting {!s}s".format(wait / 1000))
             await asyncio.sleep_ms(wait)
-            self._uart.flush()
+            self._uart.clear_rx()
         while time.ticks_ms() < et:
             await asyncio.sleep_ms(100)
             if self._uart.any() >= frame_len:
@@ -237,8 +237,11 @@ class PMS5003:
                         break
                     count += 1
             else:
+                data = b""
                 await self.__await_bytes(preframe_len, 100)
                 data = self._uart.read(preframe_len)
+            if data == None:
+                return None
             if len(data) != preframe_len and len(data) > 0:
                 self._error("Short read, expected {!s} bytes, got {!s}".format(preframe_len, len(data)))
                 return None
@@ -273,21 +276,10 @@ class PMS5003:
                 checksum = sum(buffer[0:frame_len + 2])
                 if check == checksum:
                     if self._uart.any() > 32:
-                        self._uart.flush()  # just to prevent getting flooded if a callback took too long
+                        self._uart.clear_rx()  # just to prevent getting flooded if a callback took too long
                         self._warn("Getting too many new data frames, callback too slow")
                     frame = struct.unpack(">HHHHHHHHHHHHHH", bytes(buffer[4:]))
-                    no_values = True
-                    for i in range(6, 12):
-                        if frame[i] != 0:
-                            no_values = False
-                    if no_values:
-                        buffer = []
-                        self._debug("got no values")
-                        await asyncio.sleep_ms(50)
-                        start = time.ticks_ms()  # reset timeout counter
-                        continue
-                    else:
-                        return frame
+                    return frame
             elif frame_len == CMD_FRAME_LENGTH:
                 check = buffer[-2] * 256 + buffer[-1]
                 checksum = sum(buffer[0:frame_len + 2])
